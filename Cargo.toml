@@ -28,7 +28,7 @@ tokio = { version = "1.33", features = [ "full" ] }
 toml = "0.8"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-ruvchainctl = { version = "0.5.12", default-features = false, features = [ "use_tokio" ] }
+ruvchainctl = { version = "0.5.12-5", default-features = false, features = [ "use_tokio" ] }
 strum = "0.26"
 strum_macros = "0.26"
 itertools = "0.13"
