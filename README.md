@@ -1,3 +1,6 @@
+
+[![Release](https://github.com/ruvcoindev/ruvchain-connector/actions/workflows/release.yml/badge.svg)](https://github.com/ruvcoindev/ruvchain-connector/actions/workflows/release.yml)
+
 # Ruvchain-connector
 
 Ruvchain-connector is an independent project that aims to transparently reduce latency of a connection over Ruvchain network, utilizing NAT traversal to bypass intermediary nodes. It periodically probes for active sessions and automatically establishes direct peerings over internet with remote nodes running Ruvchain-connector without requiring any firewall configuration or port mapping.
