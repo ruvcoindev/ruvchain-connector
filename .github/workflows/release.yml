@@ -1,4 +1,4 @@
-name: Release
+name: Ruvchain-connector
 
 on:
   push:
@@ -50,7 +50,7 @@ jobs:
         run: sudo apt install -y musl-tools
 
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Fetch
         run: cargo fetch --target ${{ matrix.target }}
