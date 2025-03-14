@@ -1,0 +1,50 @@
+# List of possible admin socket locations
+ruvchain_admin_listen = [
+  "unix:///var/run/ruvchain/ruvchain.sock",
+  "unix:///var/run/ruvchain.sock",
+  "tcp://localhost:5001",
+]
+
+# List of ruvchain listen addresses
+# Known in the ruvchain config as `Listen`
+# Needed on at least one side for "quic" and "tls" protocols to work
+ruvchain_listen = [ ]
+
+# Default connect/listen port on ruvchain network
+listen_port = 6868
+
+# Use IPv4/6 address space
+allow_ipv4 = true
+allow_ipv6 = true
+
+# List of peering protocols
+# Supported are "tcp", "quic", "tls"
+ruvchain_protocols = [ "tcp", "quic","tls" ]
+
+# List of allowed ruvchain addresses
+# Uncomment to apply
+#whitelist = [fa00:4715:66fa:2bd:3032:b5d1:e86f:239c:6868]
+ 
+
+# List of STUN servers
+stun_servers = [
+  "stunserver.stunprotocol.org:3478",
+  "136.243.59.79:3478",
+  "34.192.137.246:3478",
+  "94.130.130.49:3478",
+  "192.172.233.145:3478",
+  "95.216.78.222:3478",
+  "88.99.67.241:3478",
+  "88.218.220.40:3478",
+  "54.177.85.190:3478",
+  "88.198.151.128:3478",
+  "83.64.250.246:3478",
+  "62.72.83.10:3478",
+  "202.1.117.2:3478",
+  "51.83.201.84:3478",
+  "34.206.168.53:3478",
+  "91.213.98.54:3478",
+]
+
+# If false, servers will be queried consecutively
+stun_randomize = true
