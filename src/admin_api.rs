@@ -43,28 +43,6 @@ pub async fn connect(config: Config) -> Result<RouterState, ()> {
                         .map_err(map_error!("Failed to query admin api response"))?
                         .map_err(map_error!("Command 'getself' failed"))?;
 
-                    // If router version is lower then v0.4.5
-                    if matches!(version, RouterVersion::__v0_4_4)
-                        && config.ruvchain_listen.is_empty()
-                    {
-                        warn!("Direct bridges can't be established with the router at {uri}");
-                        warn!("Routers prior to v0.4.5 (Oct 2022) don't support addpeer/removepeer commands");
-                        warn!("Hint: Specify `ruvchain_addresses` in the config file or update your router");
-                    }
-
-                    // If router version is lower then v0.5.0 and quic protocol is specified
-                    if config
-                        .ruvchain_protocols
-                        .iter()
-                        .any(|p| *p == PeeringProtocol::Quic)
-                        && matches!(
-                            version,
-                            RouterVersion::__v0_4_4 | RouterVersion::v0_4_5__v0_4_7
-                        )
-                    {
-                        warn!("Transport protocol Quic is not supported by the router at {uri}");
-                    }
-
                     // If any client-server peering protocol doesn't have `listen` peer listed
                     for protocol in config
                         .ruvchain_protocols
