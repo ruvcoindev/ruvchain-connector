@@ -63,15 +63,28 @@ impl PeeringProtocol {
     pub fn is_supported_by_router(&self, version: RouterVersion) -> bool {
         match self {
             Self::Tcp | Self::Tls => true,
-            Self::Quic => !matches!(
-                version,
-                RouterVersion::__v0_4_4 | RouterVersion::v0_4_5__v0_4_7
+           Self::Quic => version.is_at_least_v0_5(),
             ),
         }
     }
 
     pub fn id(&self) -> &'static str {
         self.into()
+    }
+}
+
+// Предполагается, что RouterVersion теперь использует семантическое версионирование
+#[derive(PartialEq, PartialOrd)]
+struct RouterVersion {
+    major: u8,
+    minor: u8,
+    patch: u8,
+}
+
+impl RouterVersion {
+    // Пример метода для проверки версии
+    fn is_at_least_v0_5(&self) -> bool {
+        (self.major, self.minor) >= (0, 5)
     }
 }
 
