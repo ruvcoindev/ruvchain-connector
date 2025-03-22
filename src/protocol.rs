@@ -165,7 +165,7 @@ pub async fn try_session(
     // 2. Send `header` to peer
     let self_nonce = match state.router.version {
         _ if config.force_nonce_peering_password => true,
-        RouterVersion::__v0_4_4 | RouterVersion::v0_4_5__v0_4_7 => false,
+        RouterVersion::__v0_5_0 | RouterVersion::v0_5_12__v0_5_13 => false,
         _ => true,
     }
     .then(|| bridge::Nonce::new());
