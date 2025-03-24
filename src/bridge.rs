@@ -63,28 +63,15 @@ impl PeeringProtocol {
     pub fn is_supported_by_router(&self, version: RouterVersion) -> bool {
         match self {
             Self::Tcp | Self::Tls => true,
-           Self::Quic => version.is_at_least_v0_5(),
+            Self::Quic => !matches!(
+                version,
+                RouterVersion::__v0_4_4 | RouterVersion::v0_4_5__v0_4_7
             ),
         }
     }
 
     pub fn id(&self) -> &'static str {
         self.into()
-    }
-}
-
-// Предполагается, что RouterVersion теперь использует семантическое версионирование
-#[derive(PartialEq, PartialOrd)]
-struct RouterVersion {
-    major: u8,
-    minor: u8,
-    patch: u8,
-}
-
-impl RouterVersion {
-    // Пример метода для проверки версии
-    fn is_at_least_v0_5(&self) -> bool {
-        (self.major, self.minor) >= (0, 5)
     }
 }
 
@@ -129,18 +116,18 @@ async fn bridge(
     monitor_address: Ipv6Addr,
     peer_addr: SocketAddr,
     peer: RouterStream,
-    ruv: RouterStream,
+    ruvchain: RouterStream,
     uri: String,
 ) -> Result<(), ()> {
     info!("Connected");
 
     let mut relays = JoinSet::new();
 
-    match (peer, ruv) {
+    match (peer, ruvchain) {
         // Relay UDP traffic
-        (RouterStream::Tcp(peer), RouterStream::Tcp(ruv)) => {
+        (RouterStream::Tcp(peer), RouterStream::Tcp(ruvchain)) => {
             let (peer_read, peer_write) = peer.into_split();
-            let (ruv_read, ruv_write) = ruv.into_split();
+            let (ruvchain_read, ruvchain_write) = ruvchain.into_split();
 
             use tokio::net::tcp::{OwnedReadHalf, OwnedWriteHalf};
             let tcp_relay = |reader: OwnedReadHalf, mut writer: OwnedWriteHalf| async move {
@@ -165,20 +152,20 @@ async fn bridge(
             };
 
             relays.spawn(
-                tcp_relay(ruv_read, peer_write)
+                tcp_relay(ruvchain_read, peer_write)
                     .instrument(error_span!(" Router -> Peer TCP relay")),
             );
             relays.spawn(
-                tcp_relay(peer_read, ruv_write)
+                tcp_relay(peer_read, ruvchain_write)
                     .instrument(error_span!(" Peer -> Router TCP relay")),
             );
         }
         // Relay UDP traffic
-        (RouterStream::Udp(peer), RouterStream::Udp(ruv)) => {
+        (RouterStream::Udp(peer), RouterStream::Udp(ruvchain)) => {
             let peer_read = Arc::new(peer);
             let peer_write = peer_read.clone();
-            let ruv_read = Arc::new(ruv);
-            let ruv_write = ruv_read.clone();
+            let ruvchain_read = Arc::new(ruvchain);
+            let ruvchain_write = ruvchain_read.clone();
 
             let udp_relay = |reader: Arc<UdpSocket>, writer: Arc<UdpSocket>| async move {
                 let mut buf = Box::new([0u8; QUIC_MAXIMUM_PACKET_SIZE]);
@@ -197,11 +184,11 @@ async fn bridge(
             };
 
             relays.spawn(
-                udp_relay(peer_read, ruv_write)
+                udp_relay(peer_read, ruvchain_write)
                     .instrument(error_span!(" Peer -> Router UDP relay")),
             );
             relays.spawn(
-                udp_relay(ruv_read, peer_write)
+                udp_relay(ruvchain_read, peer_write)
                     .instrument(error_span!(" Router -> Peer UDP relay")),
             );
         }
@@ -326,14 +313,14 @@ pub async fn start_bridge(
         let prot = iter.next().map(PeeringProtocol::from_str);
         let addr = iter.next().map(|a| a.split('?').next());
 
-        let ruv = match (prot, addr) {
+        let ruvchain = match (prot, addr) {
             (Some(Ok(p)), Some(Some(addr))) if p == protocol => {
                 if p != protocol {
                     continue;
                 }
                 match protocol {
                     PeeringProtocol::Tcp | PeeringProtocol::Tls => {
-                        let ruv =
+                        let ruvchain =
                             timeout(config.connect_as_client_timeout, TcpStream::connect(addr))
                                 .await
                                 .map_err(map_warn!(
@@ -345,10 +332,10 @@ pub async fn start_bridge(
                                     ))
                                 })
                                 .ok();
-                        let addr = ruv
+                        let addr = ruvchain
                             .as_ref()
-                            .and_then(|ruv| map_addr_err(ruv.local_addr()).ok());
-                        ruv.map(|ruv| ruv.into()).zip(addr.map(uri))
+                            .and_then(|ruvchain| map_addr_err(ruvchain.local_addr()).ok());
+                        ruvchain.map(|ruvchain| ruvchain.into()).zip(addr.map(uri))
                     }
                     PeeringProtocol::Quic => {
                         let addrs = tokio::net::lookup_host(addr)
@@ -359,15 +346,15 @@ pub async fn start_bridge(
                         let addr = addrs.and_then(|mut a| a.next());
 
                         if let Some(addr) = addr {
-                            let ruv = utils::create_udp_socket_in_domain(&addr, 0)?;
-                            ruv.connect(addr)
+                            let ruvchain = utils::create_udp_socket_in_domain(&addr, 0)?;
+                            ruvchain.connect(addr)
                                 .await
                                 .map_err(map_warn!("Failed to connect UDP socket to {addr}"))
                                 .ok();
 
-                            let addr = map_addr_err(ruv.local_addr()).ok();
+                            let addr = map_addr_err(ruvchain.local_addr()).ok();
 
-                            Some(ruv.into()).zip(addr.map(uri))
+                            Some(ruvchain.into()).zip(addr.map(uri))
                         } else {
                             None
                         }
@@ -380,8 +367,8 @@ pub async fn start_bridge(
             }
         };
 
-        if let Some((ruv, uri)) = ruv {
-            return bridge(config, state, monitor_address, peer_addr, socket, ruv, uri).await;
+        if let Some((ruvchain, uri)) = ruvchain {
+            return bridge(config, state, monitor_address, peer_addr, socket, ruvchain, uri).await;
         }
     }
 
@@ -438,45 +425,45 @@ pub async fn start_bridge(
         }
     };
 
-    let (ruv, uri) = match protocol {
+    let (ruvchain, uri) = match protocol {
         PeeringProtocol::Tcp | PeeringProtocol::Tls => {
             // Create socket
-            let ruv = utils::create_tcp_socket_in_domain(&peer_addr, 0)?
+            let ruvchain = utils::create_tcp_socket_in_domain(&peer_addr, 0)?
                 .listen(1)
                 .map_err(map_warn!("Failed to create local inbound socket"))?;
 
             // Register socket as a peer
-            let uri = uri(map_addr_err(ruv.local_addr())?);
+            let uri = uri(map_addr_err(ruvchain.local_addr())?);
             add_peer(uri.clone()).await?;
 
             // Await incoming connection
-            let (ruv, _) = timeout(config.connect_as_client_timeout, ruv.accept())
+            let (ruvchain, _) = timeout(config.connect_as_client_timeout, ruvchain.accept())
                 .await
                 .map_err(map_warn!("Failed to accept ruvchain connection"))?
                 .map_err(map_warn!("Failed to accept ruvchain connection"))?;
 
-            (RouterStream::Tcp(ruv), uri)
+            (RouterStream::Tcp(ruvchain), uri)
         }
         PeeringProtocol::Quic => {
             // Create socket
-            let ruv = utils::create_udp_socket_in_domain(&peer_addr, 0)?;
+            let ruvchain = utils::create_udp_socket_in_domain(&peer_addr, 0)?;
 
             // Register socket as a peer
-            let uri = uri(map_addr_err(ruv.local_addr())?);
+            let uri = uri(map_addr_err(ruvchain.local_addr())?);
             add_peer(uri.clone()).await?;
 
             // Await incoming packets
-            let sender = timeout(config.connect_as_client_timeout, ruv.peek_sender())
+            let sender = timeout(config.connect_as_client_timeout, ruvchain.peek_sender())
                 .await
                 .map_err(map_warn!("Failed to peek ruvchain connection"))?
                 .map_err(map_warn!("Failed to peek ruvchain connection"))?;
 
             // Connect socket to the sender of the first received packet
-            ruv.connect(sender)
+            ruvchain.connect(sender)
                 .await
                 .map_err(map_warn!("Failed to connect to ruvchain socket"))?;
 
-            (ruv.into(), uri)
+            (ruvchain.into(), uri)
         }
     };
 
@@ -487,7 +474,7 @@ pub async fn start_bridge(
         monitor_address,
         peer_addr,
         socket,
-        ruv,
+        ruvchain,
         uri.clone(),
     )
     .await
