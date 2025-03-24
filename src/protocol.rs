@@ -28,7 +28,7 @@ pub const INACTIVITY_DELAY: f64 = 1.5 * 60.0;
 pub const INACTIVITY_DELAY_PERIOD: f64 = 5.0 * 60.0;
 
 pub const VERSION_PREFIX: &str = "ruvchain-connector-v";
-pub const VERSION_NUMBER: &str = "0.1";
+pub const VERSION_NUMBER: &str = "0.1.1";
 
 pub const TRAVERSAL_SUCCEED: &str = "traversal-succeed";
 
@@ -137,13 +137,13 @@ pub async fn try_session(
         let addresses = state.watch_external.borrow();
         let server_available = |protocol: PeeringProtocol| {
             config
-                .ruvchain_listen
+                .yggdrasil_listen
                 .iter()
                 .any(|a| a.split("://").next() == Some(protocol.id()))
         };
 
         config
-            .ruvchain_protocols
+            .yggdrasil_protocols
             .iter()
             .filter(|p| addresses.iter().any(|a| a.protocol == (**p).into()))
             .filter_map(|p| {
@@ -165,7 +165,7 @@ pub async fn try_session(
     // 2. Send `header` to peer
     let self_nonce = match state.router.version {
         _ if config.force_nonce_peering_password => true,
-        RouterVersion::__v0_5_0 | RouterVersion::v0_5_12__v0_5_13 => false,
+        RouterVersion::__v0_4_4 | RouterVersion::v0_4_5__v0_4_7 => false,
         _ => true,
     }
     .then(|| bridge::Nonce::new());
@@ -394,7 +394,7 @@ pub async fn try_session(
 
     match last_result {
         Some(Ok(result)) => {
-            // Close connection in the ruvchain space
+            // Close connection in the Ruvchain space
             stream.reunite(sink).ok();
 
             result.await
