@@ -3,7 +3,7 @@ name: Ruvchain-connector
 on:
   push:
     tags:
-      - "v1.0.0"
+      - "v0.1.1"
 
 permissions:
   contents: write
