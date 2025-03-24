@@ -137,13 +137,13 @@ pub async fn try_session(
         let addresses = state.watch_external.borrow();
         let server_available = |protocol: PeeringProtocol| {
             config
-                .yggdrasil_listen
+                .ruvchain_listen
                 .iter()
                 .any(|a| a.split("://").next() == Some(protocol.id()))
         };
 
         config
-            .yggdrasil_protocols
+            .ruvchain_protocols
             .iter()
             .filter(|p| addresses.iter().any(|a| a.protocol == (**p).into()))
             .filter_map(|p| {
