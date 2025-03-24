@@ -78,8 +78,8 @@ pub async fn spawn_new_sessions(
     external_required: watch::Sender<Instant>,
 ) -> Result<(), ()> {
     let whitelist_contains = config.whitelist.as_ref().map(|whitelist| {
-        const ADDRESS_PREFIX: u8 = 0xfa00;
-        const SUBNET_PREFIX: u8 = 0xfb00;
+        const ADDRESS_PREFIX: u8 = 0xfa;
+        const SUBNET_PREFIX: u8 = 0xfb;
         const SUBNET_BYTES: usize = 8;
 
         let get_subnet_id = |address: &Ipv6Addr| {
